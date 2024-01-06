@@ -1,0 +1,96 @@
+```{r}
+library(plotly)
+test1 <- read.csv("testing.csv")
+hud <- read.csv("hud_data2.csv")
+head(test1)
+head(hud)
+```
+
+
+```{r}
+test$tempHousing <- test$SPM.7 - test$X.63
+```
+
+```{r}
+# Create data table containing average percentages across states for percent of people that exit street outreach
+# X.64 = perc_successfully_exit_es_th_sh_phrrh_to_perm
+# SPM.7 = total_num_exit_es_th_sh_phrrh
+# X.63 = num_exit_es_th_sh_phrrh_to_perm
+hud$perc_successfully_exit_es_th_sh_phrrh_to_perm <- as.numeric(gsub("[%]","",hud$perc_successfully_exit_es_th_sh_phrrh_to_perm))
+hud$unsuccessful_exit <- 100 - hud$perc_successfully_exit_es_th_sh_phrrh_to_perm
+
+so_data <- hud %>%
+  select(state, total_num_exit_es_th_sh_phrrh, num_exit_es_th_sh_phrrh_to_perm, perc_successfully_exit_es_th_sh_phrrh_to_perm) %>%
+  mutate(perc_so_exit_perm = 100*hud$perc_successfully_exit_es_th_sh_phrrh_to_perm/hud$num_exit_es_th_sh_phrrh_to_perm)
+
+so_data <- so_data %>% 
+  rename(state = state, 
+                   total_exit = total_num_exit_es_th_sh_phrrh, 
+                   tot_exit_to_perm = num_exit_es_th_sh_phrrh_to_perm,
+                   perc_successfully_exit = perc_successfully_exit_es_th_sh_phrrh_to_perm)
+
+
+so_data_by_state <- aggregate(.~state,data=so_data,FUN=mean)
+so_data_by_state$unsuccesful <- 100 - so_data_by_state$perc_successfully_exit
+
+head(so_data_by_state)
+```
+```{r}
+fig <- plot_ly(so_data_by_state, x = ~state, y = ~perc_successfully_exit, type = 'bar', name = 'Successful Exit')
+fig <- fig %>% layout(yaxis = list(title = 'Percentage of Exit by State'), xaxis = list(title = "States"), barmode = 'stack')
+
+fig
+```
+
+
+
+```{r}
+# X.52 = percent of increase in wage after leaving the shelter
+# X.52 = avg_pct_wage_inc
+# X.7 = days in a shelter
+# X.7 = es_sh_th_avg_days
+fig <- plot_ly(data = subset(hud, !rural_urban == "" ), x = ~es_sh_th_avg_days, y = ~avg_pct_wage_inc, color = ~rural_urban, text = ~paste("State: ", state))
+fig <- fig %>% layout(yaxis = list(title = "Average Percent Increase in Wage"), xaxis = list(title = 'Average Days in the Shelter'))
+fig
+```
+```{r}
+              tabPanel("Nationwide Exits and Returns",
+                       fluidRow(h1("Nationwide Exits and Returns")),
+                       sidebarLayout(
+                         sidebarPanel(
+                           # Input: Slider for the number of bins ----
+                           selectInput(inputId = "housing_type",
+                                       label = "Select Housing Type",
+                                       choices = list("Street Outreach" = "so", 
+                                                      "Emergency Shelter" = "es",
+                                                      "Temporary Housing" = "th",
+                                                      "Safe Haven" = "sh",
+                                                      "Public Housing" = "ph")
+                           ),
+                           box(title = "Percent Returning by Program Type: ",
+                               width = 15,
+                               solidHeader = TRUE,
+                               "We visualize the percent of individuals that left the shelter within each state by shelter program type.
+                               The 5 types of shelter programs are Street Outreach, Emergency Shelter, Temporary Housing, Safe Haven, and
+                               Permanent Housing. Again, when the individual hovers over each state, they are able to see the specific
+                               numeric amount that corresponds to the state’s program return percentage in 12 months."
+                           )
+                        ),
+                       box(plotlyOutput(outputId = "map3Plot")),
+                       sidebarLayout(
+                         sidebarPanel(
+                           box(title = "Percent Return to Shelter Within 24 Months: ",
+                               width = 15,
+                               solidHeader = TRUE,
+                               "We visualize the return to shelter percentage rates (within 24 months) averaged across all states. From
+                               this visual we find that North and South Dakota have the highest return to shelter rates and Montana and
+                               Rhode Island have the lowest return rates. By hovering over each state, one not only finds the numeric
+                               percentage return to shelter rate but also on average how much Continuum of Care spending is given to the
+                               shelters in the state, the average number of beds available per shelter, and the individual count of people
+                               returning to the shelter within 24 months.")
+                           ),
+                           box(plotlyOutput(outputId = "map1Plot")))
+                         )
+                       )
+```
+
